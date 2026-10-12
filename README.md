@@ -1,5 +1,7 @@
 # Recall Knowledge
 
+![Demo: saving and recalling knowledge in Claude Code](docs/demo.gif)
+
 **English** · [한국어](README.ko.md)
 
 Save what you learn with an AI coding agent in one command, then review it with spaced repetition without leaving the terminal.

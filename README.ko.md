@@ -1,5 +1,7 @@
 # Recall Knowledge
 
+![데모: Claude Code에서 지식 저장 및 복습](docs/demo.gif)
+
 [English](README.md) · **한국어**
 
 AI 코딩 에이전트와 배운 내용을 명령 한 번으로 저장하고, 터미널을 떠나지 않고 간격 반복으로 복습합니다.
