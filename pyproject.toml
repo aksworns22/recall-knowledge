@@ -4,10 +4,11 @@ version = "0.1.0"
 description = "Recall Knowledge: save what you learn with an AI agent and review it with FSRS."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["fsrs==6.3.2"]
+dependencies = ["fsrs==6.3.2", "mcp==2.3.0"]
 
 [project.scripts]
 rk = "rk.cli:main"
+rk-mcp = "rk.server:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]
