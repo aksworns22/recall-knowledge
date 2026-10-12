@@ -5,7 +5,7 @@
 Save what you learn with an AI coding agent in one command, then review it with spaced repetition without leaving the terminal.
 
 - `/save-knowledge` turns the concepts from your current session into review cards.
-- `/recall-knowledge` quizzes you with multiple-choice questions on the cards that are due.
+- `/recall-knowledge` quizzes you with short-answer questions on the cards that are due.
 - Scheduling uses [FSRS](https://github.com/open-spaced-repetition/py-fsrs), the official Python implementation.
 - Works in **Claude Code** and **Codex** through one MCP server, `rk-mcp`. Both share one card database.
 
@@ -14,7 +14,7 @@ Save what you learn with an AI coding agent in one command, then review it with 
 Concepts you understand with an AI's help fade over time. They feel obvious during the conversation, yet a few days later you hit the same problem and ask again. Learning research has repeatedly found two things that make knowledge stick.
 
 - **Review at spaced intervals.** Memory fades quickly (Ebbinghaus's forgetting curve), but recalling something just before you would forget it makes the next decline slower. The hard part is timing those reviews by hand. FSRS estimates, for each card, the probability that you can recall it now, and schedules a review when that probability drops to 90%.
-- **Retrieve instead of rereading.** Pulling an answer out of memory strengthens long-term retention far more than reading the material again (retrieval practice, also called the testing effect). So reviews ask questions instead of showing cards. Multiple choice is graded on the spot, and the result maps directly to FSRS's `Good` or `Again`, so you never have to rate how well you remembered.
+- **Retrieve instead of rereading.** Pulling an answer out of memory strengthens long-term retention far more than reading the material again (retrieval practice, also called the testing effect). So reviews ask questions instead of showing cards. The agent grades each answer on the spot, and the result maps directly to FSRS's `Good`, `Hard`, or `Again`, so you never have to rate how well you remembered.
 
 Classic spaced-repetition tools apply the same ideas, but they ask you to write cards, switch apps, and curate content, and that friction is where most people stop. Recall Knowledge lets the agent write the cards and keeps saving and reviewing inside the agent session you were already in.
 
@@ -65,7 +65,7 @@ This removes the CLI, the MCP registration, and the skill links. Your cards stay
    - With text, such as `/save-knowledge useEffect cleanup runs before the next effect`, that content is saved as a card right away.
    - Without text, the agent picks 1 to 4 concepts you found hard or that were central to the session, checks for duplicates, and asks you to confirm once.
 3. Run `/recall-knowledge` whenever you like. It asks one question per due card, up to 10 at a time (`/recall-knowledge 5` for fewer).
-4. A correct answer is rated **Good** and a wrong answer **Again**. FSRS picks the next review date.
+4. A correct answer is rated **Good**, a vague or partly correct one **Hard**, and a wrong one **Again**. FSRS picks the next review date.
 
 New cards are due right away, so you can review them at the end of the session that produced them.
 
@@ -108,8 +108,8 @@ The skills stay short because the rules for writing cards and questions live in 
 | `search_cards(keywords, limit)` | Find cards matching any keyword, for duplicate checks |
 | `save_cards(cards)` | Save one or more cards; they are due immediately |
 | `update_card(card_id, ...)` | Edit a card's content; its schedule is kept |
-| `get_due_cards(limit)` | Due cards, each with a random `answer_slot` (A to D) for the correct option |
-| `record_review(card_id, correct)` | `true` rates Good, `false` rates Again; returns the next due date |
+| `get_due_cards(limit)` | Due cards, oldest first |
+| `record_review(card_id, result)` | `correct` rates Good, `vague` rates Hard, `wrong` rates Again; returns the next due date |
 | `get_stats()` | Total cards, cards due now, next due date |
 
 ## `rk` CLI
@@ -122,7 +122,7 @@ The CLI uses the same database. It is meant for you, for scripting, and for debu
 | `rk add` | Add cards from JSON on stdin (one object or an array) |
 | `rk search <kw>...` | Find cards matching any keyword in title, summary, key points, or tags |
 | `rk due [--limit N]` | List due cards, oldest first (default 10) |
-| `rk review <id> good\|again` | Record a result and print the next due date |
+| `rk review <id> good\|hard\|again` | Record a result and print the next due date |
 | `rk show <id>` | Show one card with its FSRS state |
 | `rk update <id>` | Edit a card's content from JSON on stdin; its schedule is kept |
 | `rk delete <id>` | Delete a card |
@@ -142,7 +142,7 @@ The CLI uses the same database. It is meant for you, for scripting, and for debu
 | `relearning_steps` | `()` | Same reason; a lapse goes straight to a short day-level interval |
 | `enable_fuzzing` | `True` | Spreads reviews so cards saved together do not always come back together |
 
-Only two ratings are used: `good` for a correct answer and `again` for a wrong one. `rk` does not keep a review history, so FSRS runs with its default parameters.
+Three ratings are used: `good` for a correct answer, `hard` for a vague or partly correct one, and `again` for a wrong one. `rk` does not keep a review history, so FSRS runs with its default parameters.
 
 ## Storage
 

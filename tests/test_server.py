@@ -47,14 +47,14 @@ def test_save_review_flow(db_path):
         ("save_cards", {"cards": [CARD]}),
         ("search_cards", {"keywords": ["stability"]}),
         ("get_due_cards", {}),
-        ("record_review", {"card_id": 1, "correct": True}),
+        ("record_review", {"card_id": 1, "result": "correct"}),
         ("get_stats", {}),
     ])
     assert not any(err for err, _ in results)
     saved, found, due, reviewed, stats = (r for _, r in results)
     assert saved["added"][0]["id"] == 1
     assert found["results"][0]["title"] == "FSRS stability"
-    assert due["due_count"] == 1 and due["cards"][0]["answer_slot"] in "ABCD"
+    assert due["due_count"] == 1 and due["cards"][0]["id"] == 1
     assert reviewed["rating"] == "good" and reviewed["interval_days"] >= 1
     assert stats == {"total": 1, "due_now": 0, "next_due": reviewed["next_due"]}
 
@@ -62,9 +62,17 @@ def test_save_review_flow(db_path):
 def test_wrong_answer_rates_again(db_path):
     (_, _), (err, reviewed) = call(db_path, [
         ("save_cards", {"cards": [CARD]}),
-        ("record_review", {"card_id": 1, "correct": False}),
+        ("record_review", {"card_id": 1, "result": "wrong"}),
     ])
     assert not err and reviewed["rating"] == "again"
+
+
+def test_vague_answer_rates_hard(db_path):
+    (_, _), (err, reviewed) = call(db_path, [
+        ("save_cards", {"cards": [CARD]}),
+        ("record_review", {"card_id": 1, "result": "vague"}),
+    ])
+    assert not err and reviewed["rating"] == "hard"
 
 
 def test_update_and_errors(db_path):

@@ -2,8 +2,8 @@
 
 rk reviews roughly once a day from the terminal, so minute-level learning
 steps are disabled and every review moves a card straight to day-level
-intervals. Only two ratings are used: a correct answer is Good, a wrong
-answer is Again.
+intervals. Three ratings are used: a correct answer is Good, a vague or
+partly correct answer is Hard, and a wrong answer is Again.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ DESIRED_RETENTION = 0.9
 
 RATINGS = {
     "good": Rating.Good,
+    "hard": Rating.Hard,
     "again": Rating.Again,
 }
 

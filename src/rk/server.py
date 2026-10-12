@@ -7,8 +7,7 @@ flow.
 
 from __future__ import annotations
 
-import random
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -21,7 +20,7 @@ from .validate import card_fields
 INSTRUCTIONS = """\
 rk stores what the user has learned as spaced-repetition cards scheduled by FSRS.
 Save with search_cards then save_cards. Review with get_due_cards, one
-multiple-choice question per card, then record_review after every answer.
+short-answer question per card, then record_review after every answer.
 Never compute review dates yourself; rk does it."""
 
 mcp = MCPServer("rk", instructions=INSTRUCTIONS)
@@ -34,7 +33,7 @@ class CardInput(BaseModel):
         min_length=1,
         description=(
             "3 to 5 items. Each is one standalone, verifiable fact, specific enough that a "
-            "multiple-choice question with exactly one correct answer can be built from it. "
+            "short-answer question with one clear correct answer can be built from it. "
             "Quizzes use only these points and the summary."
         ),
     )
@@ -87,7 +86,9 @@ def update_card(
     tags: list[str] | None = None,
 ) -> dict[str, Any]:
     """Edit an existing card, for example to merge a new point into a duplicate.
-    Pass only the fields to change; lists replace the old value. The review schedule is kept."""
+    Pass only the fields to change; lists replace the old value. To add a point, send the
+    card's existing key_points plus the new one, or the existing points are lost.
+    The review schedule is kept."""
     fields = _fields(
         {"title": title, "summary": summary, "key_points": key_points, "tags": tags}, partial=True
     )
@@ -100,25 +101,25 @@ def update_card(
 def get_due_cards(limit: int = 10) -> dict[str, Any]:
     """List cards due for review, oldest first.
 
-    For each card ask one four-option multiple-choice question:
+    For each card ask one short-answer question:
     - Build it only from the card's key_points and summary. Never ask about anything else.
     - Pick a different key point each time; test understanding, not wording.
-    - Exactly one option is correct. Distractors come from the same domain, match the correct
-      option in length and form, and are clearly contradicted by the card.
-    - No "all/none of the above" or trick negations. Use the card's language.
-    - Put the correct option at the card's answer_slot (A to D).
-    Do not reveal the answer before the user responds. Call record_review right after each answer."""
+    - The answer is a word, phrase, or one sentence, with one clear correct answer.
+    - Do not hint at the answer in the question. No trick negations. Use the card's language.
+    Do not reveal the answer before the user responds. Grade by meaning, not exact wording,
+    as correct, vague, or wrong (see record_review).
+    Call record_review right after each answer."""
     total, cards = _with_conn(db.due_cards, scheduler.utcnow(), limit)
-    for card in cards:
-        card["answer_slot"] = random.choice("ABCD")
     return {"due_count": total, "cards": cards}
 
 
 @mcp.tool()
-def record_review(card_id: int, correct: bool) -> dict[str, Any]:
-    """Record one quiz answer. correct=true rates the card Good, false rates it Again
-    (including "I don't know" or an unclear answer). Returns the next due date."""
-    return _with_conn(db.review_card, card_id, "good" if correct else "again", scheduler.utcnow())
+def record_review(card_id: int, result: Literal["correct", "vague", "wrong"]) -> dict[str, Any]:
+    """Record one quiz answer. correct rates the card Good. vague rates it Hard: the core idea
+    is right but the answer is incomplete, imprecise, or hesitant. wrong rates it Again,
+    including "I don't know" or an answer with a wrong core idea. Returns the next due date."""
+    rating = {"correct": "good", "vague": "hard", "wrong": "again"}[result]
+    return _with_conn(db.review_card, card_id, rating, scheduler.utcnow())
 
 
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
