@@ -1,4 +1,4 @@
-# Knowledge Recall
+# Recall Knowledge
 
 **English** · [한국어](README.ko.md)
 
@@ -11,7 +11,7 @@ Save what you learn with an AI coding agent in one command, then review it with 
 
 ## Why
 
-Concepts you understand with an AI's help fade over time. Classic spaced-repetition tools ask you to write cards, switch apps, and curate content, and that friction is where most people stop. Knowledge Recall keeps the whole loop inside the agent session you were already in.
+Concepts you understand with an AI's help fade over time. Classic spaced-repetition tools ask you to write cards, switch apps, and curate content, and that friction is where most people stop. Recall Knowledge keeps the whole loop inside the agent session you were already in.
 
 ## Requirements
 
@@ -21,8 +21,8 @@ Concepts you understand with an AI's help fade over time. Classic spaced-repetit
 ## Install
 
 ```bash
-git clone <this repo> ~/knowledge-recall
-cd ~/knowledge-recall
+git clone https://github.com/aksworns22/recall-knowledge.git ~/recall-knowledge
+cd ~/recall-knowledge
 ./install.sh
 ```
 

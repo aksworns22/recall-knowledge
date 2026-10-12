@@ -1,4 +1,4 @@
-# Knowledge Recall
+# Recall Knowledge
 
 [English](README.md) · **한국어**
 
@@ -11,7 +11,7 @@ AI 코딩 에이전트와 배운 내용을 명령 한 번으로 저장하고, �
 
 ## 왜 만들었나
 
-AI의 도움으로 이해한 개념도 시간이 지나면 잊힙니다. 기존 간격 반복 도구는 카드를 직접 쓰고, 앱을 옮겨 가고, 내용을 정리해야 해서 대부분 여기서 멈춥니다. Knowledge Recall은 이미 쓰고 있던 에이전트 세션 안에서 저장과 복습을 모두 끝냅니다.
+AI의 도움으로 이해한 개념도 시간이 지나면 잊힙니다. 기존 간격 반복 도구는 카드를 직접 쓰고, 앱을 옮겨 가고, 내용을 정리해야 해서 대부분 여기서 멈춥니다. Recall Knowledge는 이미 쓰고 있던 에이전트 세션 안에서 저장과 복습을 모두 끝냅니다.
 
 ## 요구 사항
 
@@ -21,8 +21,8 @@ AI의 도움으로 이해한 개념도 시간이 지나면 잊힙니다. 기존 
 ## 설치
 
 ```bash
-git clone <this repo> ~/knowledge-recall
-cd ~/knowledge-recall
+git clone https://github.com/aksworns22/recall-knowledge.git ~/recall-knowledge
+cd ~/recall-knowledge
 ./install.sh
 ```
 
