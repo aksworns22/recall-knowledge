@@ -186,3 +186,7 @@ install.sh            installer
 ```bash
 uv run pytest
 ```
+
+## Contributing
+
+All contributions are welcome — bug reports, feature ideas, documentation fixes, and pull requests alike. Open an issue or send a PR.
