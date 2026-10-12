@@ -1,0 +1,17 @@
+[project]
+name = "rk"
+version = "0.1.0"
+description = "Recall Knowledge: save what you learn with an AI agent and review it with FSRS."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["fsrs==6.3.2"]
+
+[project.scripts]
+rk = "rk.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["uv_build>=0.11.0,<0.12"]
+build-backend = "uv_build"
