@@ -11,7 +11,22 @@ Save what you learn with an AI coding agent in one command, then review it with 
 
 ## Why
 
-Concepts you understand with an AI's help fade over time. Classic spaced-repetition tools ask you to write cards, switch apps, and curate content, and that friction is where most people stop. Recall Knowledge keeps the whole loop inside the agent session you were already in.
+Concepts you understand with an AI's help fade over time. They feel obvious during the conversation, yet a few days later you hit the same problem and ask again. Learning research has repeatedly found two things that make knowledge stick.
+
+- **Review at spaced intervals.** Memory fades quickly (Ebbinghaus's forgetting curve), but recalling something just before you would forget it makes the next decline slower. The hard part is timing those reviews by hand. FSRS estimates, for each card, the probability that you can recall it now, and schedules a review when that probability drops to 90%.
+- **Retrieve instead of rereading.** Pulling an answer out of memory strengthens long-term retention far more than reading the material again (retrieval practice, also called the testing effect). So reviews ask questions instead of showing cards. Multiple choice is graded on the spot, and the result maps directly to FSRS's `Good` or `Again`, so you never have to rate how well you remembered.
+
+Classic spaced-repetition tools apply the same ideas, but they ask you to write cards, switch apps, and curate content, and that friction is where most people stop. Recall Knowledge lets the agent write the cards and keeps saving and reviewing inside the agent session you were already in.
+
+## What is FSRS
+
+Spaced repetition shows you a card right before you would forget it. Each successful review pushes the next one further out, so a card you know well comes back after weeks or months instead of every day. The hard part is choosing those intervals, and that is the scheduler's job.
+
+[FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/ABC-of-FSRS) (Free Spaced Repetition Scheduler) is an open-source scheduler built on a model of memory with three variables per card:
+
+- **Difficulty**: how hard the card is for you
+- **Stability**: how many days it takes for recall probability to drop to 90%
+- **Retrievability**: the probability you can recall it right now
 
 ## Requirements
 
