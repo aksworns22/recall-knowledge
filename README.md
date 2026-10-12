@@ -7,7 +7,7 @@ Save what you learn with an AI coding agent in one command, then review it with 
 - `/save-knowledge` turns the concepts from your current session into review cards.
 - `/recall-knowledge` quizzes you with multiple-choice questions on the cards that are due.
 - Scheduling uses [FSRS](https://github.com/open-spaced-repetition/py-fsrs), the official Python implementation.
-- Works in **Claude Code** and **Codex**. Both share one card database.
+- Works in **Claude Code** and **Codex** through one MCP server, `rk-mcp`. Both share one card database.
 
 ## Why
 
@@ -28,20 +28,12 @@ cd ~/knowledge-recall
 
 The script:
 
-1. installs the `rk` CLI with `uv tool install --editable`, so edits in the repo take effect immediately;
+1. installs `rk` (CLI) and `rk-mcp` (MCP server) with `uv tool install --editable`, so edits in the repo take effect immediately;
 2. links both skills into `~/.claude/skills/` and `~/.codex/skills/`;
-3. creates the database at `~/.knowledge/knowledge.db`.
+3. registers the MCP server as `rk` with `claude mcp add --scope user` and `codex mcp add`;
+4. creates the database at `~/.knowledge/knowledge.db`.
 
 If `rk` is not found afterwards, run `uv tool update-shell` and open a new terminal.
-
-### Codex sandbox
-
-Codex's default sandbox cannot write outside the workspace. Add this to `~/.codex/config.toml` so the skills can update your cards without approval prompts:
-
-```toml
-[sandbox_workspace_write]
-writable_roots = ["/Users/<you>/.knowledge"]
-```
 
 ### Uninstall
 
@@ -49,12 +41,14 @@ writable_roots = ["/Users/<you>/.knowledge"]
 ./install.sh --uninstall
 ```
 
-This removes the CLI and the skill links. Your cards stay in `~/.knowledge/knowledge.db`.
+This removes the CLI, the MCP registration, and the skill links. Your cards stay in `~/.knowledge/knowledge.db`.
 
 ## Usage
 
 1. Work or study with Claude Code or Codex as usual.
-2. When you want to keep something, run `/save-knowledge`. The agent drafts 1 to 4 cards, checks for duplicates, and asks you to confirm once.
+2. When you want to keep something, run `/save-knowledge`.
+   - With text, such as `/save-knowledge useEffect cleanup runs before the next effect`, that content is saved as a card right away.
+   - Without text, the agent picks 1 to 4 concepts you found hard or that were central to the session, checks for duplicates, and asks you to confirm once.
 3. Run `/recall-knowledge` whenever you like. It asks one question per due card, up to 10 at a time (`/recall-knowledge 5` for fewer).
 4. A correct answer is rated **Good** and a wrong answer **Again**. FSRS picks the next review date.
 
@@ -78,9 +72,34 @@ New cards are due right away, so you can review them at the end of the session t
 
 Quiz questions only use a card's `key_points` and `summary`, so you are always tested on what you chose to keep.
 
+## Architecture
+
+```
+/save-knowledge, /recall-knowledge   SKILL.md: the flow only
+            │ MCP (stdio)
+            ▼
+rk-mcp                               tools, plus card and quiz rules in their descriptions
+            │
+            ▼
+~/.knowledge/knowledge.db            SQLite + py-fsrs
+```
+
+The skills stay short because the rules for writing cards and questions live in the MCP tool descriptions. Any MCP client gets the same behavior, and the agent never builds shell commands or JSON by hand.
+
+## MCP tools
+
+| Tool | What it does |
+|---|---|
+| `search_cards(keywords, limit)` | Find cards matching any keyword, for duplicate checks |
+| `save_cards(cards)` | Save one or more cards; they are due immediately |
+| `update_card(card_id, ...)` | Edit a card's content; its schedule is kept |
+| `get_due_cards(limit)` | Due cards, each with a random `answer_slot` (A to D) for the correct option |
+| `record_review(card_id, correct)` | `true` rates Good, `false` rates Again; returns the next due date |
+| `get_stats()` | Total cards, cards due now, next due date |
+
 ## `rk` CLI
 
-Every command prints JSON to stdout. Errors go to stderr as `{"error": "..."}` with exit code 1.
+The CLI uses the same database. It is meant for you, for scripting, and for debugging. Every command prints JSON to stdout. Errors go to stderr as `{"error": "..."}` with exit code 1.
 
 | Command | What it does |
 |---|---|
@@ -133,13 +152,25 @@ The FSRS card is stored whole, as py-fsrs serializes it, so a py-fsrs upgrade do
 ## Project layout
 
 ```
-src/rk/cli.py         argument parsing and JSON output
+src/rk/server.py      MCP server (rk-mcp)
+src/rk/cli.py         CLI (rk)
 src/rk/db.py          SQLite storage
 src/rk/scheduler.py   py-fsrs wrapper
+src/rk/validate.py    card validation shared by the CLI and the server
 skills/               SKILL.md files shared by Claude Code and Codex
 tests/                pytest suite
 install.sh            installer
 ```
+
+## Troubleshooting
+
+- **The agent does not see the `rk` tools.** Run `claude mcp list` or `codex mcp list` and check that `rk` is there. Restart the session after installing.
+- **Codex reports it cannot write to `~/.knowledge`.** Add the folder to the sandbox's writable roots in `~/.codex/config.toml`:
+
+  ```toml
+  [sandbox_workspace_write]
+  writable_roots = ["/Users/<you>/.knowledge"]
+  ```
 
 ## Development
 

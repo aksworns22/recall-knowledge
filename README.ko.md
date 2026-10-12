@@ -7,7 +7,7 @@ AI 코딩 에이전트와 배운 내용을 명령 한 번으로 저장하고, �
 - `/save-knowledge`는 지금 세션에서 배운 개념을 복습 카드로 만듭니다.
 - `/recall-knowledge`는 복습할 때가 된 카드로 객관식 문제를 냅니다.
 - 복습 일정은 공식 Python 구현체 [FSRS](https://github.com/open-spaced-repetition/py-fsrs)로 계산합니다.
-- **Claude Code**와 **Codex** 모두에서 동작하고, 두 도구가 카드 DB 하나를 함께 씁니다.
+- **Claude Code**와 **Codex** 모두에서 MCP 서버 하나(`rk-mcp`)로 동작하고, 두 도구가 카드 DB 하나를 함께 씁니다.
 
 ## 왜 만들었나
 
@@ -28,20 +28,12 @@ cd ~/knowledge-recall
 
 스크립트가 하는 일:
 
-1. `uv tool install --editable`로 `rk` CLI를 설치합니다. repo를 수정하면 바로 반영됩니다.
+1. `uv tool install --editable`로 `rk`(CLI)와 `rk-mcp`(MCP 서버)를 설치합니다. repo를 수정하면 바로 반영됩니다.
 2. 두 스킬을 `~/.claude/skills/`와 `~/.codex/skills/`에 symlink로 연결합니다.
-3. `~/.knowledge/knowledge.db`에 DB를 만듭니다.
+3. `claude mcp add --scope user`와 `codex mcp add`로 MCP 서버를 `rk`라는 이름으로 등록합니다.
+4. `~/.knowledge/knowledge.db`에 DB를 만듭니다.
 
 설치 후 `rk`를 찾을 수 없다고 나오면 `uv tool update-shell`을 실행하고 터미널을 새로 여세요.
-
-### Codex 샌드박스
-
-Codex 기본 샌드박스는 작업 폴더 밖에 파일을 쓸 수 없습니다. 승인 창 없이 카드를 갱신하려면 `~/.codex/config.toml`에 다음을 추가하세요.
-
-```toml
-[sandbox_workspace_write]
-writable_roots = ["/Users/<you>/.knowledge"]
-```
 
 ### 제거
 
@@ -49,12 +41,14 @@ writable_roots = ["/Users/<you>/.knowledge"]
 ./install.sh --uninstall
 ```
 
-CLI와 스킬 링크만 지웁니다. 카드는 `~/.knowledge/knowledge.db`에 그대로 남습니다.
+CLI, MCP 등록, 스킬 링크만 지웁니다. 카드는 `~/.knowledge/knowledge.db`에 그대로 남습니다.
 
 ## 사용법
 
 1. 평소처럼 Claude Code나 Codex와 작업하거나 공부합니다.
-2. 기억하고 싶은 내용이 생기면 `/save-knowledge`를 실행합니다. 에이전트가 카드 1~4개를 만들고, 중복을 확인한 뒤, 한 번만 확인을 받습니다.
+2. 기억하고 싶은 내용이 생기면 `/save-knowledge`를 실행합니다.
+   - `/save-knowledge useEffect cleanup은 다음 effect 전에 실행된다`처럼 내용을 함께 쓰면, 그 내용을 바로 카드로 저장합니다.
+   - 내용 없이 실행하면, 에이전트가 이번 세션에서 어려워했거나 핵심이었던 개념 1~4개를 고르고, 중복을 확인한 뒤, 한 번만 확인을 받습니다.
 3. 원할 때 `/recall-knowledge`를 실행합니다. 복습할 카드마다 한 문제씩, 한 번에 최대 10개를 냅니다(`/recall-knowledge 5`처럼 줄일 수 있음).
 4. 맞히면 **Good**, 틀리면 **Again**으로 평가하고 FSRS가 다음 복습일을 정합니다.
 
@@ -78,9 +72,34 @@ CLI와 스킬 링크만 지웁니다. 카드는 `~/.knowledge/knowledge.db`에 �
 
 문제는 카드의 `key_points`와 `summary` 안에서만 출제되므로, 직접 남기기로 고른 내용만 묻습니다.
 
+## 구조
+
+```
+/save-knowledge, /recall-knowledge   SKILL.md: 진행 흐름만
+            │ MCP (stdio)
+            ▼
+rk-mcp                               도구 + 도구 설명에 담긴 카드 작성·출제 규칙
+            │
+            ▼
+~/.knowledge/knowledge.db            SQLite + py-fsrs
+```
+
+카드 작성 규칙과 출제 규칙이 MCP 도구 설명에 들어 있어서 스킬은 짧게 유지됩니다. 어떤 MCP 클라이언트에서든 똑같이 동작하고, 에이전트가 셸 명령이나 JSON을 직접 조립할 일이 없습니다.
+
+## MCP 도구
+
+| 도구 | 역할 |
+|---|---|
+| `search_cards(keywords, limit)` | 키워드 중 하나라도 맞는 카드 검색 (중복 확인용) |
+| `save_cards(cards)` | 카드 하나 이상 저장, 저장 즉시 복습 대상 |
+| `update_card(card_id, ...)` | 카드 내용 수정, 복습 일정은 유지 |
+| `get_due_cards(limit)` | 복습할 카드 목록, 카드마다 정답 위치 `answer_slot`(A~D)을 무작위로 지정 |
+| `record_review(card_id, correct)` | `true`면 Good, `false`면 Again으로 기록하고 다음 복습일 반환 |
+| `get_stats()` | 전체 카드 수, 지금 복습할 카드 수, 다음 복습일 |
+
 ## `rk` CLI
 
-모든 명령은 결과를 JSON으로 stdout에 출력합니다. 오류는 `{"error": "..."}` 형태로 stderr에 출력하고 종료 코드 1을 반환합니다.
+CLI는 같은 DB를 씁니다. 사용자가 직접 확인하거나, 스크립트를 짜거나, 디버깅할 때 씁니다. 모든 명령은 결과를 JSON으로 stdout에 출력합니다. 오류는 `{"error": "..."}` 형태로 stderr에 출력하고 종료 코드 1을 반환합니다.
 
 | 명령 | 역할 |
 |---|---|
@@ -133,13 +152,25 @@ FSRS 카드는 py-fsrs가 직렬화한 형태 그대로 저장하므로, py-fsrs
 ## 프로젝트 구조
 
 ```
-src/rk/cli.py         인자 처리와 JSON 출력
+src/rk/server.py      MCP 서버 (rk-mcp)
+src/rk/cli.py         CLI (rk)
 src/rk/db.py          SQLite 저장소
 src/rk/scheduler.py   py-fsrs 래퍼
+src/rk/validate.py    CLI와 서버가 함께 쓰는 카드 검증
 skills/               Claude Code와 Codex가 함께 쓰는 SKILL.md
 tests/                pytest 테스트
 install.sh            설치 스크립트
 ```
+
+## 문제 해결
+
+- **에이전트가 `rk` 도구를 못 찾을 때:** `claude mcp list` 또는 `codex mcp list`로 `rk`가 등록됐는지 확인하세요. 설치 후에는 세션을 새로 시작해야 합니다.
+- **Codex가 `~/.knowledge`에 쓸 수 없다고 할 때:** `~/.codex/config.toml`에서 샌드박스 쓰기 허용 경로에 추가하세요.
+
+  ```toml
+  [sandbox_workspace_write]
+  writable_roots = ["/Users/<you>/.knowledge"]
+  ```
 
 ## 개발
 
