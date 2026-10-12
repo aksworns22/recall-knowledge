@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -56,10 +57,24 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path, timeout=10, isolation_level=None)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=10000")
+    _enable_wal(conn)
     conn.executescript(SCHEMA)
     return conn
+
+
+def _enable_wal(conn: sqlite3.Connection) -> None:
+    # Switching a fresh database to WAL can fail with "database is locked"
+    # without going through the busy handler when several processes open it
+    # at once, so retry. WAL is persistent, so this only matters the first time.
+    deadline = time.monotonic() + 10
+    while conn.execute("PRAGMA journal_mode").fetchone()[0] != "wal":
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+        except sqlite3.OperationalError:
+            if time.monotonic() > deadline:
+                raise
+            time.sleep(0.05)
 
 
 def _row_to_dict(row: sqlite3.Row, full: bool = True) -> dict[str, Any]:
