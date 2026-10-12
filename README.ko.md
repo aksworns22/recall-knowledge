@@ -1,0 +1,148 @@
+# Knowledge Recall
+
+[English](README.md) · **한국어**
+
+AI 코딩 에이전트와 배운 내용을 명령 한 번으로 저장하고, 터미널을 떠나지 않고 간격 반복으로 복습합니다.
+
+- `/save-knowledge`는 지금 세션에서 배운 개념을 복습 카드로 만듭니다.
+- `/recall-knowledge`는 복습할 때가 된 카드로 객관식 문제를 냅니다.
+- 복습 일정은 공식 Python 구현체 [FSRS](https://github.com/open-spaced-repetition/py-fsrs)로 계산합니다.
+- **Claude Code**와 **Codex** 모두에서 동작하고, 두 도구가 카드 DB 하나를 함께 씁니다.
+
+## 왜 만들었나
+
+AI의 도움으로 이해한 개념도 시간이 지나면 잊힙니다. 기존 간격 반복 도구는 카드를 직접 쓰고, 앱을 옮겨 가고, 내용을 정리해야 해서 대부분 여기서 멈춥니다. Knowledge Recall은 이미 쓰고 있던 에이전트 세션 안에서 저장과 복습을 모두 끝냅니다.
+
+## 요구 사항
+
+- [uv](https://docs.astral.sh/uv/)
+- Claude Code 또는 Codex (둘 다 가능)
+
+## 설치
+
+```bash
+git clone <this repo> ~/knowledge-recall
+cd ~/knowledge-recall
+./install.sh
+```
+
+스크립트가 하는 일:
+
+1. `uv tool install --editable`로 `rk` CLI를 설치합니다. repo를 수정하면 바로 반영됩니다.
+2. 두 스킬을 `~/.claude/skills/`와 `~/.codex/skills/`에 symlink로 연결합니다.
+3. `~/.knowledge/knowledge.db`에 DB를 만듭니다.
+
+설치 후 `rk`를 찾을 수 없다고 나오면 `uv tool update-shell`을 실행하고 터미널을 새로 여세요.
+
+### Codex 샌드박스
+
+Codex 기본 샌드박스는 작업 폴더 밖에 파일을 쓸 수 없습니다. 승인 창 없이 카드를 갱신하려면 `~/.codex/config.toml`에 다음을 추가하세요.
+
+```toml
+[sandbox_workspace_write]
+writable_roots = ["/Users/<you>/.knowledge"]
+```
+
+### 제거
+
+```bash
+./install.sh --uninstall
+```
+
+CLI와 스킬 링크만 지웁니다. 카드는 `~/.knowledge/knowledge.db`에 그대로 남습니다.
+
+## 사용법
+
+1. 평소처럼 Claude Code나 Codex와 작업하거나 공부합니다.
+2. 기억하고 싶은 내용이 생기면 `/save-knowledge`를 실행합니다. 에이전트가 카드 1~4개를 만들고, 중복을 확인한 뒤, 한 번만 확인을 받습니다.
+3. 원할 때 `/recall-knowledge`를 실행합니다. 복습할 카드마다 한 문제씩, 한 번에 최대 10개를 냅니다(`/recall-knowledge 5`처럼 줄일 수 있음).
+4. 맞히면 **Good**, 틀리면 **Again**으로 평가하고 FSRS가 다음 복습일을 정합니다.
+
+새 카드는 저장하자마자 복습 대상이 되므로, 그 세션이 끝날 때 바로 복습할 수 있습니다.
+
+### 카드 예시
+
+```json
+{
+  "title": "React Server Components 직렬화 경계",
+  "summary": "서버 컴포넌트는 서버에서만 실행된다. 클라이언트 컴포넌트로 넘기는 값은 네트워크 경계를 넘으므로 직렬화할 수 있어야 한다.",
+  "key_points": [
+    "서버 컴포넌트의 코드는 브라우저로 전송되지 않는다",
+    "클라이언트 컴포넌트에 넘기는 props는 직렬화 가능해야 한다",
+    "서버 컴포넌트에서 클라이언트 컴포넌트로 함수를 props로 넘길 수 없다"
+  ],
+  "tags": ["react", "nextjs"],
+  "source": "my-app"
+}
+```
+
+문제는 카드의 `key_points`와 `summary` 안에서만 출제되므로, 직접 남기기로 고른 내용만 묻습니다.
+
+## `rk` CLI
+
+모든 명령은 결과를 JSON으로 stdout에 출력합니다. 오류는 `{"error": "..."}` 형태로 stderr에 출력하고 종료 코드 1을 반환합니다.
+
+| 명령 | 역할 |
+|---|---|
+| `rk init` | DB가 없으면 생성 |
+| `rk add` | stdin의 JSON(객체 하나 또는 배열)으로 카드 추가 |
+| `rk search <kw>...` | title, summary, key_points, tags 중 하나라도 키워드와 맞는 카드 검색 |
+| `rk due [--limit N]` | 복습할 카드를 오래된 순으로 출력 (기본 10개) |
+| `rk review <id> good\|again` | 결과를 기록하고 다음 복습일 출력 |
+| `rk show <id>` | 카드 하나와 FSRS 상태 출력 |
+| `rk update <id>` | stdin의 JSON으로 카드 내용 수정, 복습 일정은 유지 |
+| `rk delete <id>` | 카드 삭제 |
+| `rk stats` | 전체 카드 수, 지금 복습할 카드 수, 다음 복습일 |
+| `rk export` | 전체 카드를 JSON으로 출력 |
+
+`--now <ISO 8601>`로 현재 시각을 바꿀 수 있어 테스트할 때 편합니다. `RK_DB`로 DB 경로를 바꿀 수 있습니다.
+
+## 복습 일정 계산
+
+`rk`는 `fsrs.Scheduler`를 다음 설정으로 사용합니다.
+
+| 설정 | 값 | 이유 |
+|---|---|---|
+| `desired_retention` | `0.9` | 기억 확률이 90%로 떨어질 때 복습 |
+| `learning_steps` | `()` | 터미널에서 하루 한 번 정도 복습하므로 분 단위 단계가 맞지 않음 |
+| `relearning_steps` | `()` | 같은 이유. 틀린 카드는 바로 짧은 날짜 단위 간격으로 이동 |
+| `enable_fuzzing` | `True` | 함께 저장한 카드가 항상 같은 날 몰려 나오지 않게 분산 |
+
+평가는 두 가지만 씁니다. 맞히면 `good`, 틀리면 `again`입니다. 복습 기록을 따로 남기지 않으므로 FSRS는 기본 파라미터로 동작합니다.
+
+## 저장소
+
+SQLite 파일 하나(`~/.knowledge/knowledge.db`)를 WAL 모드로 씁니다. 그래서 Claude Code와 Codex 세션이 동시에 써도 안전합니다.
+
+```sql
+CREATE TABLE cards (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  title       TEXT NOT NULL,
+  summary     TEXT NOT NULL,
+  key_points  TEXT NOT NULL,         -- JSON 배열
+  tags        TEXT NOT NULL DEFAULT '[]',
+  source      TEXT,
+  created_at  TEXT NOT NULL,
+  fsrs_card   TEXT NOT NULL,         -- fsrs.Card를 JSON으로 직렬화
+  due         TEXT NOT NULL          -- 인덱스용으로 fsrs_card에서 복사
+);
+```
+
+FSRS 카드는 py-fsrs가 직렬화한 형태 그대로 저장하므로, py-fsrs를 업그레이드해도 스키마를 바꿀 필요가 없습니다.
+
+## 프로젝트 구조
+
+```
+src/rk/cli.py         인자 처리와 JSON 출력
+src/rk/db.py          SQLite 저장소
+src/rk/scheduler.py   py-fsrs 래퍼
+skills/               Claude Code와 Codex가 함께 쓰는 SKILL.md
+tests/                pytest 테스트
+install.sh            설치 스크립트
+```
+
+## 개발
+
+```bash
+uv run pytest
+```
