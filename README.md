@@ -165,12 +165,6 @@ install.sh            installer
 ## Troubleshooting
 
 - **The agent does not see the `rk` tools.** Run `claude mcp list` or `codex mcp list` and check that `rk` is there. Restart the session after installing.
-- **Codex reports it cannot write to `~/.knowledge`.** Add the folder to the sandbox's writable roots in `~/.codex/config.toml`:
-
-  ```toml
-  [sandbox_workspace_write]
-  writable_roots = ["/Users/<you>/.knowledge"]
-  ```
 
 ## Development
 

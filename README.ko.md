@@ -165,12 +165,6 @@ install.sh            설치 스크립트
 ## 문제 해결
 
 - **에이전트가 `rk` 도구를 못 찾을 때:** `claude mcp list` 또는 `codex mcp list`로 `rk`가 등록됐는지 확인하세요. 설치 후에는 세션을 새로 시작해야 합니다.
-- **Codex가 `~/.knowledge`에 쓸 수 없다고 할 때:** `~/.codex/config.toml`에서 샌드박스 쓰기 허용 경로에 추가하세요.
-
-  ```toml
-  [sandbox_workspace_write]
-  writable_roots = ["/Users/<you>/.knowledge"]
-  ```
 
 ## 개발
 
