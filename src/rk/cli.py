@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from . import __version__, db, scheduler
+from .validate import card_fields
 
 
 class UsageError(Exception):
@@ -29,38 +30,6 @@ def _read_stdin_json() -> Any:
         raise UsageError(f"invalid JSON on stdin: {e}") from e
 
 
-def _str_list(value: Any, field: str, allow_empty: bool) -> list[str]:
-    if not isinstance(value, list) or not all(isinstance(v, str) and v.strip() for v in value):
-        raise UsageError(f"'{field}' must be a list of non-empty strings")
-    if not value and not allow_empty:
-        raise UsageError(f"'{field}' must not be empty")
-    return [v.strip() for v in value]
-
-
-def _validate_item(item: Any, partial: bool = False) -> dict[str, Any]:
-    if not isinstance(item, dict):
-        raise UsageError("each card must be a JSON object")
-    out: dict[str, Any] = {}
-    for key in ("title", "summary"):
-        if key in item:
-            if not isinstance(item[key], str) or not item[key].strip():
-                raise UsageError(f"'{key}' must be a non-empty string")
-            out[key] = item[key].strip()
-        elif not partial:
-            raise UsageError(f"missing '{key}'")
-    if "key_points" in item:
-        out["key_points"] = _str_list(item["key_points"], "key_points", allow_empty=False)
-    elif not partial:
-        raise UsageError("missing 'key_points'")
-    if "tags" in item:
-        out["tags"] = _str_list(item["tags"], "tags", allow_empty=True)
-    if "source" in item:
-        if item["source"] is not None and not isinstance(item["source"], str):
-            raise UsageError("'source' must be a string")
-        out["source"] = item["source"]
-    return out
-
-
 def _parse_now(value: str | None) -> datetime:
     if value is None:
         return scheduler.utcnow()
@@ -77,11 +46,11 @@ def cmd_add(args, conn, now):
     items = payload if isinstance(payload, list) else [payload]
     if not items:
         raise UsageError("no cards given")
-    return {"added": db.add_cards(conn, [_validate_item(i) for i in items], now)}
+    return {"added": db.add_cards(conn, [card_fields(i) for i in items], now)}
 
 
 def cmd_update(args, conn, now):
-    fields = _validate_item(_read_stdin_json(), partial=True)
+    fields = card_fields(_read_stdin_json(), partial=True)
     if not fields:
         raise UsageError("nothing to update")
     return db.update_card(conn, args.id, fields)
